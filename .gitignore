@@ -5,7 +5,7 @@ env/
 
 # Variables de entorno (secretos, nunca se sube)
 .env
-
+.env.example
 # Cachés y compilados de Python
 __pycache__/
 *.py[cod]
