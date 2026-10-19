@@ -2,6 +2,7 @@ import os
 import requests
 from dotenv import load_dotenv
 
+# Cargar variables de entorno desde el archivo .env en la raíz
 load_dotenv()
 
 
@@ -10,6 +11,9 @@ def armar_peticion(pregunta: str):
         raise ValueError("La pregunta no puede estar vacía")
 
     api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("No se encontró GEMINI_API_KEY en las variables de entorno.")
+
     modelo = "gemini-3.5-flash-lite"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
     body = {"contents": [{"parts": [{"text": pregunta}]}]}
@@ -32,7 +36,7 @@ def extraer_texto(datos: dict) -> str:
     try:
         return datos["candidates"][0]["content"]["parts"][0]["text"]
     except (KeyError, IndexError):
-        raise RuntimeError("La respuesta no trae el texto generado en el lugar esperado.")
+        raise RuntimeError(f"La respuesta no trae el texto generado en el lugar esperado: {datos}")
 
 
 def obtener_dato_de_prueba(pregunta: str) -> str:
@@ -42,7 +46,7 @@ def obtener_dato_de_prueba(pregunta: str) -> str:
 
 
 if __name__ == "__main__":
-    pregunta = "Enviame un mensaje OK si la conexion es exitosa"
+    pregunta = "Si la conexion esta OK dime La conexion con Gemini esta OK"
     try:
         resultado = obtener_dato_de_prueba(pregunta)
         print(resultado)
