@@ -1,12 +1,13 @@
 import os
+import re
+import json
 import requests
 from dotenv import load_dotenv
 
-# Cargar variables de entorno desde el archivo .env en la raíz
 load_dotenv()
 
+def armar_peticion(pregunta: str, system_instruction: str, response_schema: dict = None):
 
-def armar_peticion(pregunta: str):
     if not pregunta or not pregunta.strip():
         raise ValueError("La pregunta no puede estar vacía")
 
@@ -16,9 +17,23 @@ def armar_peticion(pregunta: str):
 
     modelo = "gemini-3.5-flash-lite"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
-    body = {"contents": [{"parts": [{"text": pregunta}]}]}
-    return url, body
 
+    body = {
+        "systemInstruction": {
+            "parts": [{"text": system_instruction}]
+        },
+        "contents": [
+            {"parts": [{"text": pregunta}]}
+        ]
+    }
+
+    if response_schema is not None:
+        body["generationConfig"] = {
+            "responseMimeType": "application/json",
+            "responseSchema": response_schema
+        }
+
+    return url, body
 
 def enviar_peticion(url: str, body: dict):
     try:
@@ -31,24 +46,36 @@ def enviar_peticion(url: str, body: dict):
     except requests.exceptions.JSONDecodeError:
         raise RuntimeError("La respuesta del servicio no llegó en el formato esperado.")
 
-
 def extraer_texto(datos: dict) -> str:
     try:
         return datos["candidates"][0]["content"]["parts"][0]["text"]
     except (KeyError, IndexError):
         raise RuntimeError(f"La respuesta no trae el texto generado en el lugar esperado: {datos}")
 
+def parsear_respuesta_json(texto: str) -> dict:
+    texto_limpio = texto.strip()
+    texto_limpio = re.sub(r"^```json\s*", "", texto_limpio)
+    texto_limpio = re.sub(r"^```\s*", "", texto_limpio)
+    texto_limpio = re.sub(r"\s*```$", "", texto_limpio)
+    texto_limpio = texto_limpio.strip()
 
-def obtener_dato_de_prueba(pregunta: str) -> str:
-    url, body = armar_peticion(pregunta)
+    try:
+        datos = json.loads(texto_limpio)
+    except json.JSONDecodeError:
+        raise ValueError("La respuesta del modelo no es un JSON válido.")
+
+    return datos
+
+def obtener_dato_de_prueba(pregunta: str, system_instruction: str = "Eres un asistente técnico conciso.") -> str:
+    url, body = armar_peticion(pregunta, system_instruction)
     datos = enviar_peticion(url, body)
     return extraer_texto(datos)
 
-
 if __name__ == "__main__":
     pregunta = "Si la conexion esta OK dime La conexion con Gemini esta OK"
+    system_prompt = "Responde únicamente lo solicitado de forma exacta y breve."
     try:
-        resultado = obtener_dato_de_prueba(pregunta)
+        resultado = obtener_dato_de_prueba(pregunta, system_prompt)
         print(resultado)
     except (ValueError, RuntimeError) as error:
         print("No se pudo completar la operación:", error)

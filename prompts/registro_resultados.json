@@ -1,0 +1,14 @@
+{
+  "triaje_clasificacion_falla": {
+    "exitos": 3,
+    "intentos": 3
+  },
+  "extraccion_componentes_afectados": {
+    "exitos": 3,
+    "intentos": 3
+  },
+  "generar_resumen_tecnico": {
+    "exitos": 3,
+    "intentos": 3
+  }
+}
