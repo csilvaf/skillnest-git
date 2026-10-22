@@ -4,12 +4,23 @@ import json
 import requests
 from dotenv import load_dotenv
 
+# Cargar variables de entorno desde el archivo .env en la raíz
 load_dotenv()
 
-def armar_peticion(pregunta: str, system_instruction: str, response_schema: dict = None):
 
-    if not pregunta or not pregunta.strip():
-        raise ValueError("La pregunta no puede estar vacía")
+def armar_peticion(
+    pregunta: str,
+    system_instruction: str = "Eres un asistente técnico experto.",
+    response_schema: dict = None
+) -> tuple[str, dict]:
+
+    # Validación defensiva de tipo (evita AttributeError si se pasa una lista como [1, 2])
+    if not isinstance(pregunta, str):
+        raise ValueError("La pregunta debe ser una cadena de texto.")
+
+    # Validación de contenido vacío o puros espacios en blanco
+    if not pregunta.strip():
+        raise ValueError("La pregunta no puede estar vacía.")
 
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -35,7 +46,8 @@ def armar_peticion(pregunta: str, system_instruction: str, response_schema: dict
 
     return url, body
 
-def enviar_peticion(url: str, body: dict):
+
+def enviar_peticion(url: str, body: dict) -> dict:
     try:
         respuesta = requests.post(url, json=body)
     except requests.exceptions.ConnectionError:
@@ -46,13 +58,16 @@ def enviar_peticion(url: str, body: dict):
     except requests.exceptions.JSONDecodeError:
         raise RuntimeError("La respuesta del servicio no llegó en el formato esperado.")
 
+
 def extraer_texto(datos: dict) -> str:
     try:
         return datos["candidates"][0]["content"]["parts"][0]["text"]
     except (KeyError, IndexError):
         raise RuntimeError(f"La respuesta no trae el texto generado en el lugar esperado: {datos}")
 
+
 def parsear_respuesta_json(texto: str) -> dict:
+
     texto_limpio = texto.strip()
     texto_limpio = re.sub(r"^```json\s*", "", texto_limpio)
     texto_limpio = re.sub(r"^```\s*", "", texto_limpio)
@@ -66,16 +81,27 @@ def parsear_respuesta_json(texto: str) -> dict:
 
     return datos
 
-def obtener_dato_de_prueba(pregunta: str, system_instruction: str = "Eres un asistente técnico conciso.") -> str:
-    url, body = armar_peticion(pregunta, system_instruction)
+
+def obtener_dato_de_prueba(
+    pregunta: str,
+    system_instruction: str = "Eres un asistente técnico conciso.",
+    response_schema: dict = None
+):
+
+    url, body = armar_peticion(pregunta, system_instruction, response_schema)
     datos = enviar_peticion(url, body)
-    return extraer_texto(datos)
+    texto = extraer_texto(datos)
+
+    if response_schema:
+        return parsear_respuesta_json(texto)
+    return texto
+
 
 if __name__ == "__main__":
-    pregunta = "Si la conexion esta OK dime La conexion con Gemini esta OK"
+    pregunta_prueba = "Si la conexion esta OK dime La conexion con Gemini esta OK"
     system_prompt = "Responde únicamente lo solicitado de forma exacta y breve."
     try:
-        resultado = obtener_dato_de_prueba(pregunta, system_prompt)
-        print(resultado)
+        resultado = obtener_dato_de_prueba(pregunta_prueba, system_prompt)
+        print(f"[RESPUESTA]: {resultado}")
     except (ValueError, RuntimeError) as error:
-        print("No se pudo completar la operación:", error)
+        print(f"No se pudo completar la operación: {error}")
