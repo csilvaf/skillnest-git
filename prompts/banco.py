@@ -1,63 +1,76 @@
+"""
+Banco de prompts para el asistente integral de servicio técnico (Consolas, PC, Software y Hardware).
+Cubre desde triaje y microelectrónica hasta presupuestos de mantenimiento y armado.
+"""
+
 BANCO_DE_PROMPTS = [
     {
-        "nombre": "triaje_clasificacion_falla",
+        "nombre": "clasificacion_diagnostico_inicial",
         "system_instruction": (
-            "Eres un asistente de recepción de taller técnico de consolas y PC. "
-            "Analiza el síntoma reportado por el cliente y clasifícalo en una categoría técnica precisa, "
-            "asignando el nivel de urgencia y la confianza del diagnóstico preliminar. "
+            "Eres un técnico senior en recepción de un servicio técnico integral de tecnología. "
+            "Clasifica el requerimiento del cliente (puede ser reparación de hardware, microelectrónica, "
+            "problemas de software, formateo, mantención o armado de PC). "
+            "Determina el área técnica, la prioridad y la certeza preliminar del diagnóstico. "
             "Responde estrictamente en formato JSON con las claves indicadas."
         ),
-        "ejemplo_usuario": "La PlayStation 5 enciende, da 3 pitidos y se apaga a los 10 segundos con luz azul fija.",
-        "claves_esperadas": ["categoria_falla", "urgencia", "confianza"],
+        "ejemplo_usuario": "Mi notebook anda muy lento, se calienta y a veces sale un pantallazo azul cuando abro juegos.",
+        "claves_esperadas": ["area_tecnica", "tipo_servicio", "prioridad", "certeza_preliminar"],
         "response_schema": {
             "type": "OBJECT",
             "properties": {
-                "categoria_falla": {"type": "STRING"},
-                "urgencia": {"type": "STRING"},
-                "confianza": {"type": "NUMBER"}
+                "area_tecnica": {"type": "STRING"},
+                "tipo_servicio": {"type": "STRING"},
+                "prioridad": {"type": "STRING"},
+                "certeza_preliminar": {"type": "NUMBER"}
             },
-            "required": ["categoria_falla", "urgencia", "confianza"]
+            "required": ["area_tecnica", "tipo_servicio", "prioridad", "certeza_preliminar"]
         }
     },
     {
-        "nombre": "extraccion_componentes_afectados",
+        "nombre": "aislamiento_y_procedimiento",
         "system_instruction": (
-            "Eres un especialista en microelectrónica de consolas y computadores. "
-            "A partir de la falla reportada, extrae los componentes electrónicos o etapas "
-            "de la placa que deben revisarse con multímetro u osciloscopio. "
-            "Responde únicamente con un objeto JSON válido con las claves solicitadas."
+            "Eres un especialista de laboratorio técnico y soporte. "
+            "A partir de los síntomas, define el procedimiento técnico a seguir. "
+            "Si es hardware/microelectrónica, indica componentes a revisar o medir. "
+            "Si es software o mantenimiento, indica los pasos de diagnóstico o limpieza. "
+            "Responde exclusivamente en formato JSON estructurado."
         ),
-        "ejemplo_usuario": "Nintendo Switch no enciende ni carga, se calentó cerca del puerto de carga USB-C.",
-        "claves_esperadas": ["componentes_sugeridos", "linea_voltaje"],
+        "ejemplo_usuario": "Quiero armar un PC gamer pero no sé si la placa madre B550 es compatible con el procesador Ryzen 7 5800X3D y si necesito actualizar la BIOS.",
+        "claves_esperadas": ["tipo_procedimiento", "pasos_a_seguir", "herramientas_o_software_sugerido"],
         "response_schema": {
             "type": "OBJECT",
             "properties": {
-                "componentes_sugeridos": {
+                "tipo_procedimiento": {"type": "STRING"},
+                "pasos_a_seguir": {
                     "type": "ARRAY",
                     "items": {"type": "STRING"}
                 },
-                "linea_voltaje": {"type": "STRING"}
+                "herramientas_o_software_sugerido": {
+                    "type": "ARRAY",
+                    "items": {"type": "STRING"}
+                }
             },
-            "required": ["componentes_sugeridos", "linea_voltaje"]
+            "required": ["tipo_procedimiento", "pasos_a_seguir", "herramientas_o_software_sugerido"]
         }
     },
     {
-        "nombre": "generar_resumen_tecnico",
+        "nombre": "estimacion_presupuesto_trabajo",
         "system_instruction": (
-            "Eres el encargado de control de calidad del taller. "
-            "Genera un resumen técnico breve y formal para la orden de trabajo interna, "
-            "junto con el tiempo estimado de diagnóstico inicial en minutos. "
-            "Responde únicamente en formato JSON con las claves pedidas."
+            "Eres el encargado de presupuestos y logística del taller. "
+            "Genera una estimación del tiempo de trabajo en minutos, la complejidad de la tarea "
+            "y si requerirá la compra de licencias, piezas nuevas o repuestos. "
+            "Responde únicamente con un objeto JSON válido."
         ),
-        "ejemplo_usuario": "PC Gamer con placa ASUS B550 no da video. El LED de depuración 'DRAM' queda encendido tras cambio de gabinete.",
-        "claves_esperadas": ["resumen_orden", "tiempo_estimado_minutos"],
+        "ejemplo_usuario": "Necesito formatear mi PC, instalar Windows 11 desde cero, respaldar 500GB de fotos y cambiarle la pasta térmica.",
+        "claves_esperadas": ["tiempo_estimado_minutos", "requiere_piezas_licencias", "complejidad_operativa"],
         "response_schema": {
             "type": "OBJECT",
             "properties": {
-                "resumen_orden": {"type": "STRING"},
-                "tiempo_estimado_minutos": {"type": "INTEGER"}
+                "tiempo_estimado_minutos": {"type": "INTEGER"},
+                "requiere_piezas_licencias": {"type": "BOOLEAN"},
+                "complejidad_operativa": {"type": "STRING"}
             },
-            "required": ["resumen_orden", "tiempo_estimado_minutos"]
+            "required": ["tiempo_estimado_minutos", "requiere_piezas_licencias", "complejidad_operativa"]
         }
     }
 ]
