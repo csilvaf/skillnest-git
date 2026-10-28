@@ -1,10 +1,11 @@
 import os
 import re
 import json
+import time
+from typing import Callable, Any
 import requests
 from dotenv import load_dotenv
 
-# Cargar variables de entorno desde el archivo .env en la raíz
 load_dotenv()
 
 
@@ -14,11 +15,9 @@ def armar_peticion(
     response_schema: dict = None
 ) -> tuple[str, dict]:
 
-    # Validación defensiva de tipo (evita AttributeError si se pasa una lista como [1, 2])
     if not isinstance(pregunta, str):
         raise ValueError("La pregunta debe ser una cadena de texto.")
 
-    # Validación de contenido vacío o puros espacios en blanco
     if not pregunta.strip():
         raise ValueError("La pregunta no puede estar vacía.")
 
@@ -49,14 +48,22 @@ def armar_peticion(
 
 def enviar_peticion(url: str, body: dict) -> dict:
     try:
-        respuesta = requests.post(url, json=body)
-    except requests.exceptions.ConnectionError:
-        raise RuntimeError("No se pudo conectar con el servicio. Intenta de nuevo en unos segundos.")
+        respuesta = requests.post(url, json=body, timeout=10)
+    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+        raise TimeoutError("No se pudo contactar al proveedor. Puede ser momentáneo.")
+    
+    if respuesta.status_code in (401, 403):
+        raise ValueError("Credencial inválida o sin permiso. Revisa tu GEMINI_API_KEY.")
+    if respuesta.status_code == 429 or respuesta.status_code >= 500:
+        raise TimeoutError("Límite de peticiones excedido o error del servidor. Hay que esperar y reintentar.")
 
     try:
+        respuesta.raise_for_status()
         return respuesta.json()
     except requests.exceptions.JSONDecodeError:
         raise RuntimeError("La respuesta del servicio no llegó en el formato esperado.")
+    except requests.exceptions.HTTPError as e:
+        raise RuntimeError(f"Error HTTP no contemplado: {e}")
 
 
 def extraer_texto(datos: dict) -> str:
@@ -67,7 +74,6 @@ def extraer_texto(datos: dict) -> str:
 
 
 def parsear_respuesta_json(texto: str) -> dict:
-
     texto_limpio = texto.strip()
     texto_limpio = re.sub(r"^```json\s*", "", texto_limpio)
     texto_limpio = re.sub(r"^```\s*", "", texto_limpio)
@@ -82,14 +88,27 @@ def parsear_respuesta_json(texto: str) -> dict:
     return datos
 
 
+def con_reintento(funcion: Callable[[], Any], intentos: int = 3, espera_segundos: int = 2) -> Any:
+    for intento in range(1, intentos + 1):
+        try:
+            return funcion()
+        except TimeoutError:
+            if intento == intentos:
+                # Si es el último intento, se convierte en RuntimeError para el cliente
+                raise RuntimeError("El servicio no respondió tras varios intentos. Intenta más tarde.")
+            print(f"Intento {intento} de {intentos} falló por límite de uso o red. Reintentando en {espera_segundos}s...")
+            time.sleep(espera_segundos)
+
+
 def obtener_dato_de_prueba(
     pregunta: str,
     system_instruction: str = "Eres un asistente técnico conciso.",
     response_schema: dict = None
 ):
-
     url, body = armar_peticion(pregunta, system_instruction, response_schema)
-    datos = enviar_peticion(url, body)
+    
+    datos = con_reintento(lambda: enviar_peticion(url, body))
+    
     texto = extraer_texto(datos)
 
     if response_schema:
