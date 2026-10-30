@@ -1,0 +1,23 @@
+[
+  {
+    "consulta": "¿Qué significa que la PS5 dé 3 pitidos y se apague?",
+    "respuesta": "Significa que la consola ha sufrido un sobrecalentamiento crítico o tiene un fallo grave de hardware que activa su sistema de protección automático.",
+    "precision": 0.21739130434782608,
+    "cobertura": 0.2631578947368421,
+    "f1": 0.23809523809523808
+  },
+  {
+    "consulta": "¿Para qué sirve la pasta térmica en el procesador?",
+    "respuesta": "La pasta térmica sirve para rellenar las microimperfecciones entre el procesador y el disipador, mejorando la transferencia de calor y evitando el sobrecalentamiento.",
+    "precision": 0.5652173913043478,
+    "cobertura": 0.7647058823529411,
+    "f1": 0.65
+  },
+  {
+    "consulta": "¿Qué componente reviso primero si el PC no da video pero encienden los ventiladores?",
+    "respuesta": "Revisa primero la memoria RAM, extrayéndola, limpiando sus contactos e intentando encender con un solo módulo en diferentes ranuras.",
+    "precision": 0.3684210526315789,
+    "cobertura": 0.4375,
+    "f1": 0.39999999999999997
+  }
+]
