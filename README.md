@@ -219,3 +219,12 @@ python prompts/test_consistencia.py
 - **Encontrado:** En la primera verificación se revisó que todas las librerías utilizadas (`requests`, `python-dotenv`) estuvieran debidamente congeladas en `requirements.txt` y que `.gitignore` permitiera explícitamente `.env.example` mediante la regla `!.env.example`.
 - **Corregido:** Se actualizaron las dependencias con `pip freeze > requirements.txt`, se ajustó `.gitignore` y se validó la carga automática desde `main.py` y `src/consumir_gemini.py`.
 - **Resultado tras la corrección:** Clonación remota ejecutada sin anomalías, entorno `.venv` inicializado e instalado al 100% (`pip check` sin conflictos), archivo `.env` configurado a partir de `.env.example` y ejecución de `python main.py` y `python prompts/test_consistencia.py` completada sin intervención manual ni excepciones no controladas.
+
+## Registro del ensayo de rate limit
+
+- **Fecha:** 2026-10-29
+- **Peticiones enviadas:** 15
+- **Peticiones donde apareció el error 429:** en la petición 0 (inicio del lote tras pruebas previas) y en la petición 7
+- **Esperas observadas:** 2.0s y 2.1s (backoff exponencial con jitter del 10%, funcionando según lo diseñado)
+- **Costo total del ensayo:** $0.00156
+- **Resultado:** todas las 15 peticiones terminaron con éxito tras reintentar automáticamente, registrando costos únicamente en las operaciones completadas.
