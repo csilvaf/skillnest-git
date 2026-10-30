@@ -1,13 +1,13 @@
 {
-  "triaje_clasificacion_falla": {
+  "clasificacion_diagnostico_inicial": {
     "exitos": 3,
     "intentos": 3
   },
-  "extraccion_componentes_afectados": {
+  "aislamiento_y_procedimiento": {
     "exitos": 3,
     "intentos": 3
   },
-  "generar_resumen_tecnico": {
+  "estimacion_presupuesto_trabajo": {
     "exitos": 3,
     "intentos": 3
   }

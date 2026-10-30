@@ -2,11 +2,49 @@ import os
 import re
 import json
 import time
+import random
 from typing import Callable, Any
 import requests
 from dotenv import load_dotenv
 
 load_dotenv()
+
+COSTO_POR_1000_TOKENS = 0.002
+costo_total_sesion = 0.0
+
+
+def calcular_costo_peticion(
+    datos: dict,
+    precio_entrada: float = 0.00000010,
+    precio_salida: float = 0.00000040
+) -> float:
+    """
+    Calcula el costo detallado separando tokens de entrada y salida (estilo profesor).
+    Usa .get() defensivo para evitar KeyError si usageMetadata no viene en la respuesta.
+    """
+    uso = datos.get("usageMetadata", {})
+    tokens_entrada = uso.get("promptTokenCount", 0)
+    tokens_salida = uso.get("candidatesTokenCount", 0)
+    costo_entrada = tokens_entrada * precio_entrada
+    costo_salida = tokens_salida * precio_salida
+    return costo_entrada + costo_salida
+
+
+def registrar_costo(respuesta: dict) -> float:
+    """
+    Mide los tokens consumidos en la operación exitosa y acumula el costo en la sesión.
+    """
+    global costo_total_sesion
+    uso = respuesta.get("usageMetadata", {})
+    total_tokens = uso.get("totalTokenCount", 0)
+    costo_estimado = (total_tokens / 1000) * COSTO_POR_1000_TOKENS
+    costo_total_sesion += costo_estimado
+    print(
+        f"Operación: {total_tokens} tokens, "
+        f"costo estimado: ${costo_estimado:.5f} "
+        f"(acumulado: ${costo_total_sesion:.5f})"
+    )
+    return costo_estimado
 
 
 def armar_peticion(
@@ -14,7 +52,7 @@ def armar_peticion(
     system_instruction: str = "Eres un asistente técnico experto.",
     response_schema: dict = None
 ) -> tuple[str, dict]:
-
+    """Valida los parámetros de entrada y construye la URL y el cuerpo JSON."""
     if not isinstance(pregunta, str):
         raise ValueError("La pregunta debe ser una cadena de texto.")
 
@@ -28,9 +66,12 @@ def armar_peticion(
     modelo = "gemini-3.5-flash-lite"
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
 
+    # Si system_instruction viene vacío, enviamos un texto base seguro para no romper la API
+    instruccion = system_instruction if system_instruction else "Eres un asistente técnico conciso."
+
     body = {
         "systemInstruction": {
-            "parts": [{"text": system_instruction}]
+            "parts": [{"text": instruccion}]
         },
         "contents": [
             {"parts": [{"text": pregunta}]}
@@ -47,15 +88,25 @@ def armar_peticion(
 
 
 def enviar_peticion(url: str, body: dict) -> dict:
+    """
+    Envía la petición HTTP POST y clasifica los errores (401/403 -> ValueError, 429/5xx -> TimeoutError).
+    """
     try:
         respuesta = requests.post(url, json=body, timeout=10)
     except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
         raise TimeoutError("No se pudo contactar al proveedor. Puede ser momentáneo.")
-    
+
     if respuesta.status_code in (401, 403):
         raise ValueError("Credencial inválida o sin permiso. Revisa tu GEMINI_API_KEY.")
-    if respuesta.status_code == 429 or respuesta.status_code >= 500:
-        raise TimeoutError("Límite de peticiones excedido o error del servidor. Hay que esperar y reintentar.")
+
+    if respuesta.status_code == 429:
+        segundos = respuesta.headers.get("Retry-After")
+        if segundos:
+            raise TimeoutError(f"Se ha alcanzado el límite de peticiones. Intenta más tarde en {segundos} segundos.")
+        raise TimeoutError("El proveedor no pudo procesar la petición. Hay que esperar y reintentar.")
+
+    if respuesta.status_code >= 500:
+        raise TimeoutError("Error temporal del servidor del proveedor. Hay que esperar y reintentar.")
 
     try:
         respuesta.raise_for_status()
@@ -64,6 +115,27 @@ def enviar_peticion(url: str, body: dict) -> dict:
         raise RuntimeError("La respuesta del servicio no llegó en el formato esperado.")
     except requests.exceptions.HTTPError as e:
         raise RuntimeError(f"Error HTTP no contemplado: {e}")
+
+
+def con_reintento(
+    funcion: Callable[[], Any],
+    intentos: int = 3,
+    espera_base: float = 2,
+    espera_maxima: float = 30,
+) -> Any:
+    """
+    Ejecuta una función y reintenta con backoff exponencial, techo y jitter si ocurre TimeoutError.
+    """
+    for intento in range(1, intentos + 1):
+        try:
+            return funcion()
+        except TimeoutError:
+            if intento == intentos:
+                raise
+            espera = min(espera_base * (2 ** (intento - 1)), espera_maxima)
+            espera_con_jitter = espera + random.uniform(0, espera * 0.1)
+            print(f"Intento {intento} de {intentos} falló. Reintentando en {espera_con_jitter:.1f}s...")
+            time.sleep(espera_con_jitter)
 
 
 def extraer_texto(datos: dict) -> str:
@@ -75,8 +147,7 @@ def extraer_texto(datos: dict) -> str:
 
 def parsear_respuesta_json(texto: str) -> dict:
     texto_limpio = texto.strip()
-    texto_limpio = re.sub(r"^```json\s*", "", texto_limpio)
-    texto_limpio = re.sub(r"^```\s*", "", texto_limpio)
+    texto_limpio = re.sub(r"^```(?:json)?\s*", "", texto_limpio)
     texto_limpio = re.sub(r"\s*```$", "", texto_limpio)
     texto_limpio = texto_limpio.strip()
 
@@ -88,16 +159,25 @@ def parsear_respuesta_json(texto: str) -> dict:
     return datos
 
 
-def con_reintento(funcion: Callable[[], Any], intentos: int = 3, espera_segundos: int = 2) -> Any:
-    for intento in range(1, intentos + 1):
-        try:
-            return funcion()
-        except TimeoutError:
-            if intento == intentos:
-                # Si es el último intento, se convierte en RuntimeError para el cliente
-                raise RuntimeError("El servicio no respondió tras varios intentos. Intenta más tarde.")
-            print(f"Intento {intento} de {intentos} falló por límite de uso o red. Reintentando en {espera_segundos}s...")
-            time.sleep(espera_segundos)
+def consultar_modelo(
+    pregunta: str,
+    system_instruction: str = "Eres un asistente técnico conciso.",
+    response_schema: dict = None
+):
+
+    url, body = armar_peticion(pregunta, system_instruction, response_schema)
+    try:
+        respuesta = con_reintento(lambda: enviar_peticion(url, body))
+    except TimeoutError:
+        raise RuntimeError("El servicio no respondió tras varios intentos. Intenta más tarde.")
+
+    # El costo se registra únicamente cuando la petición tuvo éxito
+    registrar_costo(respuesta)
+    texto = extraer_texto(respuesta)
+
+    if response_schema:
+        return parsear_respuesta_json(texto)
+    return texto
 
 
 def obtener_dato_de_prueba(
@@ -105,22 +185,17 @@ def obtener_dato_de_prueba(
     system_instruction: str = "Eres un asistente técnico conciso.",
     response_schema: dict = None
 ):
-    url, body = armar_peticion(pregunta, system_instruction, response_schema)
-    
-    datos = con_reintento(lambda: enviar_peticion(url, body))
-    
-    texto = extraer_texto(datos)
-
-    if response_schema:
-        return parsear_respuesta_json(texto)
-    return texto
+    return consultar_modelo(pregunta, system_instruction, response_schema)
 
 
 if __name__ == "__main__":
-    pregunta_prueba = "Si la conexion esta OK dime La conexion con Gemini esta OK"
-    system_prompt = "Responde únicamente lo solicitado de forma exacta y breve."
-    try:
-        resultado = obtener_dato_de_prueba(pregunta_prueba, system_prompt)
-        print(f"[RESPUESTA]: {resultado}")
-    except (ValueError, RuntimeError) as error:
-        print(f"No se pudo completar la operación: {error}")
+    print("--- Iniciando ensayo de Rate Limit provocado (Bloque 13) ---")
+    # Disparamos 15 peticiones seguidas sin time.sleep entre ellas
+    for i in range(15):
+        try:
+            respuesta = consultar_modelo(f"Pregunta de prueba número {i}: ¿qué es una CPU en 1 línea?")
+            print(f"Respuesta {i}: {respuesta.strip()[:45]}...")
+        except RuntimeError as error:
+            print(f"Respuesta {i} falló definitivamente: {error}")
+
+    print(f"\nCosto total del ensayo: ${costo_total_sesion:.5f}")
