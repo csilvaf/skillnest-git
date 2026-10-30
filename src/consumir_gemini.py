@@ -9,6 +9,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    f"gemini-3.5-flash-lite:generateContent?key={GEMINI_API_KEY}"
+)
+headers = {"Content-Type": "application/json"}
+
 COSTO_POR_1000_TOKENS = 0.002
 costo_total_sesion = 0.0
 
@@ -18,10 +25,7 @@ def calcular_costo_peticion(
     precio_entrada: float = 0.00000010,
     precio_salida: float = 0.00000040
 ) -> float:
-    """
-    Calcula el costo detallado separando tokens de entrada y salida (estilo profesor).
-    Usa .get() defensivo para evitar KeyError si usageMetadata no viene en la respuesta.
-    """
+
     uso = datos.get("usageMetadata", {})
     tokens_entrada = uso.get("promptTokenCount", 0)
     tokens_salida = uso.get("candidatesTokenCount", 0)
@@ -31,9 +35,7 @@ def calcular_costo_peticion(
 
 
 def registrar_costo(respuesta: dict) -> float:
-    """
-    Mide los tokens consumidos en la operación exitosa y acumula el costo en la sesión.
-    """
+
     global costo_total_sesion
     uso = respuesta.get("usageMetadata", {})
     total_tokens = uso.get("totalTokenCount", 0)
@@ -52,7 +54,6 @@ def armar_peticion(
     system_instruction: str = "Eres un asistente técnico experto.",
     response_schema: dict = None
 ) -> tuple[str, dict]:
-    """Valida los parámetros de entrada y construye la URL y el cuerpo JSON."""
     if not isinstance(pregunta, str):
         raise ValueError("La pregunta debe ser una cadena de texto.")
 
@@ -87,12 +88,17 @@ def armar_peticion(
     return url, body
 
 
-def enviar_peticion(url: str, body: dict) -> dict:
-    """
-    Envía la petición HTTP POST y clasifica los errores (401/403 -> ValueError, 429/5xx -> TimeoutError).
-    """
+def enviar_peticion(url_o_cuerpo: str | dict, body: dict = None) -> dict:
+
+    if body is None and isinstance(url_o_cuerpo, dict):
+        url_destino = URL
+        cuerpo_json = url_o_cuerpo
+    else:
+        url_destino = url_o_cuerpo
+        cuerpo_json = body
+
     try:
-        respuesta = requests.post(url, json=body, timeout=10)
+        respuesta = requests.post(url_destino, json=cuerpo_json, headers=headers, timeout=10)
     except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
         raise TimeoutError("No se pudo contactar al proveedor. Puede ser momentáneo.")
 
@@ -100,7 +106,8 @@ def enviar_peticion(url: str, body: dict) -> dict:
         raise ValueError("Credencial inválida o sin permiso. Revisa tu GEMINI_API_KEY.")
 
     if respuesta.status_code == 429:
-        segundos = respuesta.headers.get("Retry-After")
+        headers_resp = getattr(respuesta, "headers", {})
+        segundos = headers_resp.get("Retry-After") if isinstance(headers_resp, dict) else None
         if segundos:
             raise TimeoutError(f"Se ha alcanzado el límite de peticiones. Intenta más tarde en {segundos} segundos.")
         raise TimeoutError("El proveedor no pudo procesar la petición. Hay que esperar y reintentar.")
@@ -123,9 +130,7 @@ def con_reintento(
     espera_base: float = 2,
     espera_maxima: float = 30,
 ) -> Any:
-    """
-    Ejecuta una función y reintenta con backoff exponencial, techo y jitter si ocurre TimeoutError.
-    """
+
     for intento in range(1, intentos + 1):
         try:
             return funcion()
@@ -189,13 +194,10 @@ def obtener_dato_de_prueba(
 
 
 if __name__ == "__main__":
-    print("--- Iniciando ensayo de Rate Limit provocado (Bloque 13) ---")
-    # Disparamos 15 peticiones seguidas sin time.sleep entre ellas
-    for i in range(15):
-        try:
-            respuesta = consultar_modelo(f"Pregunta de prueba número {i}: ¿qué es una CPU en 1 línea?")
-            print(f"Respuesta {i}: {respuesta.strip()[:45]}...")
-        except RuntimeError as error:
-            print(f"Respuesta {i} falló definitivamente: {error}")
-
-    print(f"\nCosto total del ensayo: ${costo_total_sesion:.5f}")
+    print("--- Prueba individual del cliente modular ---")
+    try:
+        respuesta = consultar_modelo("¿Cuál es la capital de Chile? Responde en una oración corta.")
+        print(f"Respuesta: {respuesta.strip()}")
+        print(f"Costo acumulado de la sesión: ${costo_total_sesion:.5f}")
+    except (ValueError, RuntimeError) as error:
+        print(f"No se pudo completar la operación: {error}")
