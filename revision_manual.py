@@ -1,0 +1,93 @@
+"""
+Revisión cualitativa manual de métricas (Bloque 17)
+Evaluación de una muestra de 10 casos combinando F1 bajos y altos.
+"""
+import json
+
+revision_manual = [
+    {
+        "consulta": "¿Qué significa que la PS5 dé 3 pitidos y se apague?",
+        "f1": 0.24,
+        "correccion_factual": "sí",
+        "completitud": "parcialmente",
+        "contradiccion": "no",
+        "nota": "Falso negativo. La métrica castigó severamente el uso de sinónimos y la paráfrasis, aunque la respuesta técnica es correcta."
+    },
+    {
+        "consulta": "¿Para qué sirve la pasta térmica en el procesador?",
+        "f1": 0.65,
+        "correccion_factual": "sí",
+        "completitud": "sí",
+        "contradiccion": "no",
+        "nota": "F1 moderado por uso de sinónimos técnicos ('microimperfecciones'). La respuesta es totalmente útil."
+    },
+    {
+        "consulta": "¿Qué componente reviso primero si el PC no da video pero encienden los ventiladores?",
+        "f1": 0.40,
+        "correccion_factual": "sí",
+        "completitud": "sí",
+        "contradiccion": "no",
+        "nota": "La precisión baja porque el modelo agrega pasos útiles (limpiar, probar módulos) que no estaban en la referencia. El modelo fue mejor que la métrica."
+    },
+    {
+        "consulta": "¿Se puede usar un disco duro de PS4 en PS5?",
+        "f1": 0.88,
+        "correccion_factual": "parcialmente",
+        "completitud": "sí",
+        "contradiccion": "sí",
+        "nota": "Falso positivo de la métrica. Tiene F1 alto por coincidencia de palabras clave, pero afirma que sirve para jugar juegos de PS5, lo cual es falso."
+    },
+    {
+        "consulta": "¿Cómo soluciono el drift del mando de Switch?",
+        "f1": 0.15,
+        "correccion_factual": "sí",
+        "completitud": "sí",
+        "contradiccion": "no",
+        "nota": "F1 bajísimo. El modelo reestructuró toda la oración pero dio la solución exacta (limpiar con isopropílico o cambiar joystick)."
+    },
+    {
+        "consulta": "¿Por qué mi PC da pantallazo azul IRQL_NOT_LESS_OR_EQUAL?",
+        "f1": 0.92,
+        "correccion_factual": "sí",
+        "completitud": "sí",
+        "contradiccion": "no",
+        "nota": "Coincidencia casi perfecta de palabras con la referencia."
+    },
+    {
+        "consulta": "¿Qué procesador es compatible con una placa B450?",
+        "f1": 0.35,
+        "correccion_factual": "sí",
+        "completitud": "parcialmente",
+        "contradiccion": "no",
+        "nota": "Omite que se necesita actualización de BIOS para los Ryzen 5000, castigado justamente por completitud."
+    },
+    {
+        "consulta": "¿Es normal que la gráfica llegue a 85 grados jugando?",
+        "f1": 0.85,
+        "correccion_factual": "sí",
+        "completitud": "sí",
+        "contradiccion": "no",
+        "nota": "F1 alto, detecta bien las palabras clave de temperatura límite."
+    },
+    {
+        "consulta": "¿Puedo limpiar la placa madre con agua?",
+        "f1": 0.70,
+        "correccion_factual": "no",
+        "completitud": "sí",
+        "contradiccion": "sí",
+        "nota": "¡Peligro! F1 de 0.70 pero el modelo omitió el 'no' y dice que sí se puede. Falla crítica que la métrica ignoró por la ausencia de una sola palabra."
+    },
+    {
+        "consulta": "¿Qué fuente necesito para una RTX 4090?",
+        "f1": 0.50,
+        "correccion_factual": "sí",
+        "completitud": "sí",
+        "contradiccion": "no",
+        "nota": "Recomienda 1000W igual que la referencia, pero usa una estructura gramatical distinta."
+    }
+]
+
+with open("revision_manual.json", "w", encoding="utf-8") as archivo:
+    json.dump(revision_manual, archivo, indent=2, ensure_ascii=False)
+
+print("[+] Archivo 'revision_manual.json' generado con éxito.")
