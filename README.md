@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Provider](https://img.shields.io/badge/provider-Google%20AI%20Studio-orange.svg)](https://aistudio.google.com/)
 [![Model](https://img.shields.io/badge/model-gemini--3.5--flash--lite-green.svg)](https://ai.google.dev/)
-[![Framework](https://img.shields.io/badge/orchestration-LangChain-blueviolet.svg)](https://www.langchain.com/)
+[![Framework](https://img.shields.io/badge/orchestration-LangChain%20%2B%20Pydantic-purple.svg)](https://www.langchain.com/)
 [![Status](https://img.shields.io/badge/evaluation-Gate%201%20%26%20U2.4%20Ready-brightgreen.svg)]()
 
 Miniaplicación de línea de comandos (CLI) y sistema de orquestación con IA desarrollado en Python para la automatización del **triaje técnico, clasificación de fallas, procedimientos de soporte, estimación de presupuestos y atención conversacional con agentes autónomos** en un servicio técnico integral de tecnología (consolas PlayStation 5, Nintendo Switch, notebooks y computadores de escritorio).
@@ -38,55 +38,55 @@ Esta solución estandariza y automatiza el análisis técnico y la atención al 
 
 El diseño modular inicial desacopla estrictamente la orquestación, el transporte HTTP y el procesamiento de datos (`src/consumir_gemini.py` y `cliente.py`), integrando telemetría, reintentos con backoff exponencial y programación defensiva:
 
-    [ 👤 Usuario / main.py ]                   [( 📁 Archivo .env )]
-              │                                         │
-              │ pregunta: str, response_schema: dict     │ GEMINI_API_KEY
-              ▼                                         ▼
-┌──────────────────────────────────────────────────────────────┐
-│ 1. armar_peticion(...)                                       │
-│    • isinstance(pregunta, str) -> ValueError                 │
-│    • Validación de espacios en blanco -> ValueError          │
-│    • os.getenv("GEMINI_API_KEY") -> ValueError si falta      │
-│    • Separa 'systemInstruction' de 'contents'                │
-│    • Inyecta 'generationConfig' (JSON schema) si aplica      │
-└──────────────────────────────┬───────────────────────────────┘
-                               │ url: str + body: dict
-                               ▼
-┌──────────────────────────────────────────────────────────────┐       ┌────────────────────────────┐
-│ 2. enviar_peticion(...) + con_reintento(...)                 │       │ ☁️ Google Gemini API       │
-│    • requests.post(url, json=body) ──────POST HTTP (JSON)───►│       │    (gemini-3.5-flash-lite) │
-│    • Backoff exponencial + jitter (HTTP 429 / Timeout)       │       │ • Inferencia y detokenizado│
-│    • respuesta.json()              ◄──HTTP 200 OK (JSON)─────│       │ • Desglose usageMetadata   │
-│    • except ConnectionError -> RuntimeError                  │       └────────────────────────────┘
-│    • except JSONDecodeError -> RuntimeError                  │
-└──────────────┬───────────────────────────────┬───────────────┘
-               │                               │
-               │ rama 'candidates'             │ rama 'usageMetadata'
-               ▼                               ▼
-┌──────────────────────────────┐ ┌─────────────────────────────┐
-│ 3. extraer_texto(...)        │ │ 4. Telemetría de Consumo     │
-│    • candidates[0]...["text"]│ │    • promptTokenCount       │
-│    • except (KeyError,       │ │    • candidatesTokenCount   │
-│      IndexError)             │ │    • totalTokenCount        │
-│      -> RuntimeError         │ └─────────────┬───────────────┘
-└──────────────┬───────────────┘               │
-               │ texto / JSON crudo            │
-               ▼                               │
-┌──────────────────────────────┐               │
-│ 5. parsear_respuesta_json(...)│              │
-│    • Sanitizado de Markdown  │               │
-│    • json.loads(limpio)      │               │
-│    • except JSONDecodeError  │               │
-│      -> ValueError           │               │
-└──────────────┬───────────────┘               │
-               │ dict estructurado             │
-               └───────────────┬───────────────┘
-                               │
-                               ▼
-┌──────────────────────────────────────────────────────────────┐
-│ 🏁 Salida a Terminal / Consola                               │
-│ Retorno tipado + Desglose de tokens y costos acumulados      │
-└──────────────────────────────────────────────────────────────┘
+           [ 👤 Usuario / main.py ]                   [( 📁 Archivo .env )]
+                     │                                         │
+                     │ pregunta: str, response_schema: dict     │ GEMINI_API_KEY
+                     ▼                                         ▼
+       ┌──────────────────────────────────────────────────────────────┐
+       │ 1. armar_peticion(...)                                       │
+       │    • isinstance(pregunta, str) -> ValueError                 │
+       │    • Validación de espacios en blanco -> ValueError          │
+       │    • os.getenv("GEMINI_API_KEY") -> ValueError si falta      │
+       │    • Separa 'systemInstruction' de 'contents'                │
+       │    • Inyecta 'generationConfig' (JSON schema) si aplica      │
+       └──────────────────────────────┬───────────────────────────────┘
+                                      │ url: str + body: dict
+                                      ▼
+       ┌──────────────────────────────────────────────────────────────┐       ┌────────────────────────────┐
+       │ 2. enviar_peticion(...) + con_reintento(...)                 │       │ ☁️ Google Gemini API       │
+       │    • requests.post(url, json=body) ──────POST HTTP (JSON)───►│       │    (gemini-3.5-flash-lite) │
+       │    • Backoff exponencial + jitter (HTTP 429 / Timeout)       │       │ • Inferencia y detokenizado│
+       │    • respuesta.json()              ◄──HTTP 200 OK (JSON)─────│       │ • Desglose usageMetadata   │
+       │    • except ConnectionError -> RuntimeError                  │       └────────────────────────────┘
+       │    • except JSONDecodeError -> RuntimeError                  │
+       └──────────────┬───────────────────────────────┬───────────────┘
+                      │                               │
+                      │ rama 'candidates'             │ rama 'usageMetadata'
+                      ▼                               ▼
+       ┌──────────────────────────────┐ ┌─────────────────────────────┐
+       │ 3. extraer_texto(...)        │ │ 4. Telemetría de Consumo     │
+       │    • candidates[0]...["text"]│ │    • promptTokenCount       │
+       │    • except (KeyError,       │ │    • candidatesTokenCount   │
+       │      IndexError)             │ │    • totalTokenCount        │
+       │      -> RuntimeError         │ └─────────────┬───────────────┘
+       └──────────────┬───────────────┘               │
+                      │ texto / JSON crudo            │
+                      ▼                               │
+       ┌──────────────────────────────┐               │
+       │ 5. parsear_respuesta_json(...)│              │
+       │    • Sanitizado de Markdown  │               │
+       │    • json.loads(limpio)      │               │
+       │    • except JSONDecodeError  │               │
+       │      -> ValueError           │               │
+       └──────────────┬───────────────┘               │
+                      │ dict estructurado             │
+                      └───────────────┬───────────────┘
+                                      │
+                                      ▼
+       ┌──────────────────────────────────────────────────────────────┐
+       │ 🏁 Salida a Terminal / Consola                               │
+       │ Retorno tipado + Desglose de tokens y costos acumulados      │
+       └──────────────────────────────────────────────────────────────┘
 
 El diagrama de arquitectura exportado en alta resolución se encuentra versionado en `docs/diagrama_arquitectura.png`.
 
@@ -146,7 +146,7 @@ Para dar cumplimiento estricto a las directrices de seguridad del programa y al 
 2. **Control en `.gitignore`:** El archivo `.gitignore` excluye deliberadamente cualquier variación de archivos de entorno (`.env`, `*.env`) y carpetas de entorno virtual (`.venv/`), manteniendo una excepción explícita para versionar la plantilla pública (`!.env.example`).
 3. **Auditoría de Historial Git:** El repositorio cuenta con verificación de historial limpio demostrable mediante:
 
-    git log --all --oneline -- .env
+       git log --all --oneline -- .env
 
    *(Resultado esperado: vacío, confirmando que la clave nunca fue commiteada en el historial).*
 
@@ -287,8 +287,6 @@ Para correr todas las pruebas unitarias del repositorio (usando `MagicMock` sin 
 - **Encontrado:** En la primera verificación se revisó que todas las librerías utilizadas (`requests`, `python-dotenv`) estuvieran debidamente congeladas en `requirements.txt` y que `.gitignore` permitiera explícitamente `.env.example` mediante la regla `!.env.example`.
 - **Corregido:** Se actualizaron las dependencias con `pip freeze > requirements.txt`, se ajustó `.gitignore` y se validó la carga automática desde `main.py` y `src/consumir_gemini.py`.
 - **Resultado tras la corrección:** Clonación remota ejecutada sin anomalías, entorno `.venv` inicializado e instalado al 100% (`pip check` sin conflictos), archivo `.env` configurado a partir de `.env.example` y ejecución de `python main.py` y `python prompts/test_consistencia.py` completada sin intervención manual ni excepciones no controladas.
-
----
 
 ## 📈 Registro del Ensayo de Rate Limit
 
