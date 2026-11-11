@@ -18,3 +18,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Base de datos vectorial (Bloque 24)
+vectorstore/
