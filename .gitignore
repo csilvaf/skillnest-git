@@ -21,3 +21,5 @@ Thumbs.db
 
 # Base de datos vectorial (Bloque 24)
 vectorstore/
+vectorstore_ejemplo/
+replica_ejemplo.py
