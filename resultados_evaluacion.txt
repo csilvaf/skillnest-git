@@ -1,0 +1,9 @@
+Fecha: 2026-11-16
+Configuracion: k=3, chunk_size=250, chunk_overlap=30
+
+0.33 1.00 ¿Qué compuesto lleva el procesador de la PS5 y por qué no debo usar pasta térmica normal?
+0.33 1.00 Llegó una consola portátil de Nintendo que no sube batería tras usar un dock alternativo, ¿qué chips reviso?
+0.33 1.00 ¿Qué indican 1 pitido largo y 2 cortos en la placa madre de un PC?
+0.33 1.00 ¿Cuál es el protocolo de respaldo antes de formatear un computador de cliente?
+
+promedio -> precision: 0.333 recall: 1.000
