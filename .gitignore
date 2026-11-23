@@ -24,3 +24,5 @@ vectorstore/
 vectorstore_ejemplo/
 replica_ejemplo.py
 verificar_entorno.py
+comparar_estrategias.py
+costo_computo.py
